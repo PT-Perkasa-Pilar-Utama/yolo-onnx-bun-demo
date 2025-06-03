@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YOLO ONNX Bun Object Detection</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #1a1a1a;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      h1 {
+        margin-bottom: 30px;
+        color: #4caf50;
+      }
+
+      #videoContainer {
+        position: relative;
+        border: 3px solid #4caf50;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+      }
+
+      #video {
+        width: 640px;
+        height: 480px;
+        background-color: #333;
+        display: block;
+      }
+
+      #overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 640px;
+        height: 480px;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      #startBtn {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      #startBtn:hover {
+        background-color: #45a049;
+      }
+
+      #stopBtn {
+        background-color: #f44336;
+        color: white;
+      }
+
+      #stopBtn:hover {
+        background-color: #da190b;
+      }
+
+      #liveDetectBtn {
+        background-color: #ff9800;
+        color: white;
+        font-weight: bold;
+      }
+
+      #liveDetectBtn:hover {
+        background-color: #e68900;
+      }
+
+      #liveDetectBtn.active {
+        background-color: #4caf50;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+        }
+        70% {
+          box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+        }
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .settings {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin-top: 10px;
+      }
+
+      .setting-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      label {
+        font-size: 14px;
+        color: #ccc;
+      }
+
+      input[type="range"] {
+        width: 100px;
+      }
+
+      input[type="number"] {
+        width: 80px;
+        padding: 4px 8px;
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        color: white;
+      }
+
+      #status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        max-width: 640px;
+        text-align: center;
+      }
+
+      .status-success {
+        background-color: #4caf50;
+        color: white;
+      }
+
+      .status-error {
+        background-color: #f44336;
+        color: white;
+      }
+
+      .status-info {
+        background-color: #2196f3;
+        color: white;
+      }
+
+      .status-warning {
+        background-color: #ff9800;
+        color: white;
+      }
+
+      .status-live {
+        background-color: #9c27b0;
+        color: white;
+      }
+
+      #stats {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        max-width: 640px;
+        width: 100%;
+      }
+
+      .stat-card {
+        background-color: #2a2a2a;
+        border: 1px solid #555;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #4caf50;
+      }
+
+      .stat-label {
+        font-size: 12px;
+        color: #aaa;
+        margin-top: 5px;
+      }
+
+      #hiddenCanvas {
+        display: none;
+      }
+
+      .detection-info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 20;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Demo `ppu-yolo-onnx-inference` on Bunjs</h1>
+
+    <div id="videoContainer">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div
+        id="detectionInfo"
+        class="detection-info"
+        style="display: none"
+      ></div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn">Start Camera</button>
+      <button id="stopBtn" disabled>Stop Camera</button>
+      <button id="liveDetectBtn" disabled>🔴 Start Live Detection</button>
+    </div>
+
+    <div class="settings">
+      <div class="setting-group">
+        <label for="confidenceSlider">Confidence:</label>
+        <input
+          type="range"
+          id="confidenceSlider"
+          min="0.1"
+          max="1.0"
+          step="0.1"
+          value="0.5"
+        />
+        <span id="confidenceValue">0.5</span>
+      </div>
+      <div class="setting-group">
+        <label for="fpsInput">FPS:</label>
+        <input type="number" id="fpsInput" min="1" max="30" value="5" />
+      </div>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="fpsCounter">0</div>
+        <div class="stat-label">FPS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="detectionCounter">0</div>
+        <div class="stat-label">Detections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avgProcessingTime">0</div>
+        <div class="stat-label">Avg Time (ms)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="confidenceDisplay">0.0</div>
+        <div class="stat-label">Max Confidence</div>
+      </div>
+    </div>
+
+    <canvas id="hiddenCanvas"></canvas>
+
+    <script>
+      const video = document.getElementById("video");
+      const overlay = document.getElementById("overlay");
+      const overlayCtx = overlay.getContext("2d");
+      const hiddenCanvas = document.getElementById("hiddenCanvas");
+      const hiddenCtx = hiddenCanvas.getContext("2d");
+      const detectionInfo = document.getElementById("detectionInfo");
+
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const liveDetectBtn = document.getElementById("liveDetectBtn");
+      const status = document.getElementById("status");
+
+      const confidenceSlider = document.getElementById("confidenceSlider");
+      const confidenceValue = document.getElementById("confidenceValue");
+      const fpsInput = document.getElementById("fpsInput");
+
+      // Stats elements
+      const fpsCounter = document.getElementById("fpsCounter");
+      const detectionCounter = document.getElementById("detectionCounter");
+      const avgProcessingTime = document.getElementById("avgProcessingTime");
+      const confidenceDisplay = document.getElementById("confidenceDisplay");
+
+      let stream = null;
+      let isLiveDetecting = false;
+      let detectionInterval = null;
+      let frameCount = 0;
+      let totalDetections = 0;
+      let processingTimes = [];
+      let lastFpsUpdate = Date.now();
+
+      // Set canvas size
+      overlay.width = 640;
+      overlay.height = 480;
+
+      function updateStatus(message, type = "info") {
+        status.textContent = message;
+        status.className = `status-${type}`;
+      }
+
+      function updateStats(detections, processingTime) {
+        frameCount++;
+
+        if (detections && detections.length > 0) {
+          totalDetections += detections.length;
+          const maxConf = Math.max(...detections.map((d) => d.confidence));
+          confidenceDisplay.textContent = (maxConf * 100).toFixed(1) + "%";
+        }
+
+        if (processingTime) {
+          processingTimes.push(processingTime);
+          if (processingTimes.length > 10) {
+            processingTimes.shift();
+          }
+          const avgTime =
+            processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length;
+          avgProcessingTime.textContent = Math.round(avgTime);
+        }
+
+        // Update FPS every second
+        const now = Date.now();
+        if (now - lastFpsUpdate >= 1000) {
+          const fps = frameCount / ((now - lastFpsUpdate) / 1000);
+          fpsCounter.textContent = fps.toFixed(1);
+          frameCount = 0;
+          lastFpsUpdate = now;
+        }
+
+        detectionCounter.textContent = totalDetections;
+      }
+
+      function drawBoundingBoxes(detections) {
+        // Clear overlay
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+
+        if (!detections || detections.length === 0) {
+          detectionInfo.style.display = "none";
+          return;
+        }
+
+        // Draw bounding boxes
+        detections.forEach((detection, index) => {
+          // Fix: Use the correct property names from server response
+          const { box, confidence, className } = detection;
+
+          // Scale coordinates to overlay size
+          const scaleX = overlay.width / hiddenCanvas.width;
+          const scaleY = overlay.height / hiddenCanvas.height;
+
+          const x = box.x * scaleX;
+          const y = box.y * scaleY;
+          const width = box.width * scaleX;
+          const height = box.height * scaleY;
+
+          // Draw bounding box
+          overlayCtx.strokeStyle = "#4CAF50";
+          overlayCtx.lineWidth = 3;
+          overlayCtx.strokeRect(x, y, width, height);
+
+          // Draw filled background for label
+          const label = `${className || "Object"} ${(confidence * 100).toFixed(
+            1
+          )}%`;
+          overlayCtx.font = "14px Arial";
+          const textMetrics = overlayCtx.measureText(label);
+          const textWidth = textMetrics.width;
+          const textHeight = 20;
+
+          overlayCtx.fillStyle = "#4CAF50";
+          overlayCtx.fillRect(
+            x,
+            y - textHeight - 5,
+            textWidth + 10,
+            textHeight + 5
+          );
+
+          // Draw label text
+          overlayCtx.fillStyle = "white";
+          overlayCtx.fillText(label, x + 5, y - 8);
+
+          // Draw corner indicators
+          const cornerSize = 20;
+          overlayCtx.strokeStyle = "#FF9800";
+          overlayCtx.lineWidth = 2;
+
+          // Top-left corner
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x, y + cornerSize);
+          overlayCtx.lineTo(x, y);
+          overlayCtx.lineTo(x + cornerSize, y);
+          overlayCtx.stroke();
+
+          // Top-right corner
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x + width - cornerSize, y);
+          overlayCtx.lineTo(x + width, y);
+          overlayCtx.lineTo(x + width, y + cornerSize);
+          overlayCtx.stroke();
+
+          // Bottom-left corner
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x, y + height - cornerSize);
+          overlayCtx.lineTo(x, y + height);
+          overlayCtx.lineTo(x + cornerSize, y + height);
+          overlayCtx.stroke();
+
+          // Bottom-right corner
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(x + width - cornerSize, y + height);
+          overlayCtx.lineTo(x + width, y + height);
+          overlayCtx.lineTo(x + width, y + height - cornerSize);
+          overlayCtx.stroke();
+        });
+
+        // Show detection info
+        if (detections.length > 0) {
+          const detection = detections[0];
+          detectionInfo.innerHTML = `
+      <div>📍 Position: (${Math.round(detection.box.x)}, ${Math.round(
+            detection.box.y
+          )})</div>
+      <div>📐 Size: ${Math.round(detection.box.width)} × ${Math.round(
+            detection.box.height
+          )}</div>
+      <div>🎯 Confidence: ${(detection.confidence * 100).toFixed(1)}%</div>
+    `;
+          detectionInfo.style.display = "block";
+        }
+      }
+      async function processFrame() {
+        if (!isLiveDetecting || !stream || video.videoWidth === 0) {
+          return;
+        }
+
+        try {
+          // Set canvas size to match video
+          hiddenCanvas.width = video.videoWidth;
+          hiddenCanvas.height = video.videoHeight;
+
+          // Draw current frame to hidden canvas
+          hiddenCtx.drawImage(
+            video,
+            0,
+            0,
+            hiddenCanvas.width,
+            hiddenCanvas.height
+          );
+
+          // Convert to blob
+          const blob = await new Promise((resolve) => {
+            hiddenCanvas.toBlob(resolve, "image/jpeg", 0.8);
+          });
+
+          // Send to server for detection
+          const formData = new FormData();
+          formData.append("image", blob, "frame.jpg");
+          formData.append("confidence", confidenceSlider.value);
+
+          const startTime = Date.now();
+          const response = await fetch("/detect", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            const processingTime = Date.now() - startTime;
+
+            // Add debug logging
+            console.log("Detection result:", result);
+            console.log(
+              "Number of detections:",
+              result.detections?.length || 0
+            );
+
+            if (result.success) {
+              if (result.detections && result.detections.length > 0) {
+                console.log("Drawing bounding boxes for:", result.detections);
+              }
+              drawBoundingBoxes(result.detections);
+              updateStats(result.detections, processingTime);
+            } else {
+              console.log("Detection failed:", result.error);
+              drawBoundingBoxes([]);
+              updateStats([], processingTime);
+            }
+          } else {
+            console.error("HTTP error:", response.status, response.statusText);
+          }
+        } catch (error) {
+          console.error("Frame processing error:", error);
+        }
+      }
+      async function startCamera() {
+        try {
+          updateStatus("Requesting camera access...", "info");
+
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "user",
+            },
+            audio: false,
+          });
+
+          video.srcObject = stream;
+
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          liveDetectBtn.disabled = false;
+
+          updateStatus(
+            'Camera started! Click "Start Live Detection" to begin AI detection.',
+            "success"
+          );
+        } catch (error) {
+          console.error("Error accessing camera:", error);
+
+          let errorMessage = "Failed to access camera. ";
+          if (error.name === "NotAllowedError") {
+            errorMessage += "Permission denied. Please allow camera access.";
+          } else if (error.name === "NotFoundError") {
+            errorMessage += "No camera found on this device.";
+          } else if (error.name === "NotReadableError") {
+            errorMessage += "Camera is already in use by another application.";
+          } else {
+            errorMessage += error.message;
+          }
+
+          updateStatus(errorMessage, "error");
+        }
+      }
+
+      function stopCamera() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+          video.srcObject = null;
+
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          liveDetectBtn.disabled = true;
+
+          stopLiveDetection();
+          overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+          detectionInfo.style.display = "none";
+
+          updateStatus("Camera stopped.", "info");
+        }
+      }
+
+      function startLiveDetection() {
+        if (isLiveDetecting) return;
+
+        isLiveDetecting = true;
+        liveDetectBtn.textContent = "⏹️ Stop Live Detection";
+        liveDetectBtn.classList.add("active");
+
+        const fps = parseInt(fpsInput.value) || 5;
+        const interval = 1000 / fps;
+
+        detectionInterval = setInterval(processFrame, interval);
+
+        updateStatus(`Live detection started at ${fps} FPS.`, "live");
+
+        // Reset stats
+        frameCount = 0;
+        totalDetections = 0;
+        processingTimes = [];
+        lastFpsUpdate = Date.now();
+      }
+
+      function stopLiveDetection() {
+        if (!isLiveDetecting) return;
+
+        isLiveDetecting = false;
+        liveDetectBtn.textContent = "🔴 Start Live Detection";
+        liveDetectBtn.classList.remove("active");
+
+        if (detectionInterval) {
+          clearInterval(detectionInterval);
+          detectionInterval = null;
+        }
+
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        detectionInfo.style.display = "none";
+
+        updateStatus("Live detection stopped.", "info");
+      }
+
+      function toggleLiveDetection() {
+        if (isLiveDetecting) {
+          stopLiveDetection();
+        } else {
+          startLiveDetection();
+        }
+      }
+
+      // Event listeners
+      startBtn.addEventListener("click", startCamera);
+      stopBtn.addEventListener("click", stopCamera);
+      liveDetectBtn.addEventListener("click", toggleLiveDetection);
+
+      confidenceSlider.addEventListener("input", (e) => {
+        confidenceValue.textContent = e.target.value;
+      });
+
+      // Handle page unload
+      window.addEventListener("beforeunload", () => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        if (detectionInterval) {
+          clearInterval(detectionInterval);
+        }
+      });
+
+      // Initial status
+      updateStatus(
+        'Click "Start Camera" to begin live object detection',
+        "info"
+      );
+    </script>
+  </body>
+</html>

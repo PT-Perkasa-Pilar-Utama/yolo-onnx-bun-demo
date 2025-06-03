@@ -1,0 +1,19 @@
+{
+  "name": "yolo-onnx-bun-demo",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "hono": "^4.7.11",
+    "ppu-yolo-onnx-inference": "^1.0.0"
+  }
+}
