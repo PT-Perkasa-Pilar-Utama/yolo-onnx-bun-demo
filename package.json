@@ -14,6 +14,6 @@
   },
   "dependencies": {
     "hono": "^4.7.11",
-    "ppu-yolo-onnx-inference": "^1.0.0"
+    "ppu-yolo-onnx-inference": "^1.1.0"
   }
 }

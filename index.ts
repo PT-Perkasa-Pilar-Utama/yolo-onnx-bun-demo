@@ -3,9 +3,12 @@ import { YoloDetectionInference } from "ppu-yolo-onnx-inference";
 import { COCO128_CLASS } from "./coco128-class";
 import index from "./index.html";
 
+const modelFile = Bun.file("./coco128.onnx");
+const modelBuffer = await modelFile.arrayBuffer();
+
 const model = new YoloDetectionInference({
   model: {
-    path: "./coco128.onnx",
+    onnx: modelBuffer,
     classNames: COCO128_CLASS,
   },
   thresholds: {

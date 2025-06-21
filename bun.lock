@@ -5,7 +5,7 @@
       "name": "yolo-onnx-bun-demo",
       "dependencies": {
         "hono": "^4.7.11",
-        "ppu-yolo-onnx-inference": "^1.0.0",
+        "ppu-yolo-onnx-inference": "^1.1.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -86,7 +86,7 @@
 
     "ppu-ocv": ["ppu-ocv@1.2.3", "", { "dependencies": { "@napi-rs/canvas": "^0.1.69", "@techstark/opencv-js": "^4.10.0-release.1" } }, "sha512-IJF5sP0LyYca10ybxeZo84JdeIT1zQzP9Adrs3DlXryJVDybN2RdEanLDgFMZjfNYTeBfedhomLtdTjKbmC2qg=="],
 
-    "ppu-yolo-onnx-inference": ["ppu-yolo-onnx-inference@1.0.0", "", { "dependencies": { "onnxruntime-node": "^1.21.1", "ppu-ocv": "^1.2.3" } }, "sha512-gbVgXzuyjQSp5Xsk9nRf9CG09fj21OqGUM6JG1s+skLYhZHeZJ2vgfYKHw3rxC13E9f5O7kOI4PvqhNiqPt5Og=="],
+    "ppu-yolo-onnx-inference": ["ppu-yolo-onnx-inference@1.1.0", "", { "dependencies": { "onnxruntime-node": "^1.21.1", "ppu-ocv": "^1.2.3" } }, "sha512-Gk1ePx5b5z6F3P4IhTeRPY2aPNBaWG2HLEn770QbT9phbDEXMruoAIzAKoRNCbA/Kn1X25AEpNKsCc8dmJx4vQ=="],
 
     "roarr": ["roarr@2.15.4", "", { "dependencies": { "boolean": "^3.0.1", "detect-node": "^2.0.4", "globalthis": "^1.0.1", "json-stringify-safe": "^5.0.1", "semver-compare": "^1.0.0", "sprintf-js": "^1.1.2" } }, "sha512-CHhPh+UNHD2GTXNYhPWLnU8ONHdI+5DI+4EYIAOaiD63rHeYlZvyh8P+in5999TTSFgUYuKUAjzRI4mdh/p+2A=="],
 
