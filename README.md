@@ -1,5 +1,7 @@
 # yolo-onnx-bun-demo
 
+DEMO VIDEO: https://www.youtube.com/watch?v=i7TIbin7Wuk
+
 To install dependencies:
 
 ```bash
